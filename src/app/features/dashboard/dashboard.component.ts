@@ -1,7 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule, CurrencyPipe } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { forkJoin, Observable } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
 import { AssetService } from '../../core/services/asset.service';
 import { Asset } from '../../core/models/asset.model';
 import { AuthService } from '../../core/services/auth.service';
@@ -155,11 +157,11 @@ import { ConfirmationService } from 'primeng/api';
             ></button>
             <button
               pButton
-              label="Save Changes"
-              icon="pi pi-save"
+              [label]="saving ? 'Saving...' : 'Save Changes'"
+              [icon]="saving ? 'pi pi-spin pi-spinner' : 'pi pi-save'"
               severity="primary"
               size="small"
-              [disabled]="!hasUnsavedChanges"
+              [disabled]="!hasUnsavedChanges || saving"
               (click)="saveChanges()"
             ></button>
           </div>
@@ -322,6 +324,7 @@ export class DashboardComponent implements OnInit {
   dirtyIds = new Set<string>();
   duplicateNames = new Set<string>();
   saveError = '';
+  saving = false;
   activityLog: { id: number; time: string; action: string; detail: string }[] = [];
   private logCounter = 0;
 
@@ -340,18 +343,12 @@ export class DashboardComponent implements OnInit {
     private assetService: AssetService,
     private authService: AuthService,
     private confirmationService: ConfirmationService,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
     this.currentUser = this.authService.currentUser;
-    this.assetService.getAssets().subscribe((assets) => {
-      this.assets = assets.map((a) => ({ ...a }));
-      this.originalAssets = assets.map((a) => ({ ...a }));
-      this.rebuildTypeOptions();
-      this.rebuildDuplicates();
-      this.applyFilters();
-      this.recalcStats();
-    });
+    this.doRefresh();
   }
 
   applyFilters(): void {
@@ -449,6 +446,7 @@ export class DashboardComponent implements OnInit {
       this.rebuildDuplicates();
       this.applyFilters();
       this.recalcStats();
+      this.cdr.detectChanges();
     });
   }
 
@@ -481,6 +479,8 @@ export class DashboardComponent implements OnInit {
       this.log('Save Changes', 'Blocked — duplicate asset name detected');
       return;
     }
+
+    const ops: Observable<Asset>[] = [];
     for (const id of this.dirtyIds) {
       const asset = this.assets.find((a) => a.id === id);
       if (!asset) continue;
@@ -489,30 +489,43 @@ export class DashboardComponent implements OnInit {
         name: asset.name,
         type: asset.type,
         value: asset.value,
-        currency: asset.currency,
-        status: asset.status,
-        lastUpdated: asset.lastUpdated,
+        description: asset.description,
+        serialNumber: asset.serialNumber,
       });
       if (isNew) {
-        this.log('API POST', `POST /api/assets`);
+        this.log('API POST', 'POST /api/assets');
         this.log('Payload', payload);
-        this.assetService.addAsset(asset);
+        ops.push(this.assetService.addAsset(asset));
       } else {
         this.log('API PUT', `PUT /api/assets/${id}`);
         this.log('Payload', payload);
-        this.assetService.updateAsset(id, asset);
+        ops.push(this.assetService.updateAsset(id, asset));
       }
     }
-    this.log('Save Changes', `${this.dirtyIds.size} asset(s) saved successfully`);
-    this.dirtyIds.clear();
-    this.saveError = '';
-    this.originalAssets = this.assets.map((a) => ({ ...a }));
-    this.rebuildDuplicates();
+
+    const count = this.dirtyIds.size;
+    this.saving = true;
+    forkJoin(ops).subscribe({
+      next: () => {
+        this.log('Save Changes', `${count} asset(s) saved successfully`);
+        this.dirtyIds.clear();
+        this.saveError = '';
+        this.saving = false;
+        this.originalAssets = this.assets.map((a) => ({ ...a }));
+        this.rebuildDuplicates();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.saveError = this.httpErrorMessage(err);
+        this.log('Save Changes', `Failed — HTTP ${err.status}: ${this.saveError}`);
+        this.saving = false;
+      },
+    });
   }
 
   deleteAsset(asset: Asset): void {
     this.log('Delete Asset', `"${asset.name}" (${asset.type})`);
     this.log('API DELETE', `DELETE /api/assets/${asset.id}`);
+    // Optimistic UI removal
     this.assets = this.assets.filter((a) => a.id !== asset.id);
     this.originalAssets = this.originalAssets.filter((a) => a.id !== asset.id);
     this.dirtyIds.delete(asset.id);
@@ -520,7 +533,26 @@ export class DashboardComponent implements OnInit {
     this.rebuildDuplicates();
     this.applyFilters();
     this.recalcStats();
-    this.assetService.deleteAsset(asset.id);
+    this.assetService.deleteAsset(asset.id).subscribe({
+      error: (err: HttpErrorResponse) => {
+        this.log('Delete Asset', `Failed — HTTP ${err.status}: ${this.httpErrorMessage(err)}`);
+      },
+    });
+  }
+
+  private httpErrorMessage(err: HttpErrorResponse): string {
+    switch (err.status) {
+      case 403:
+        return 'Permission denied — your account role cannot perform this action. Log in with an admin account.';
+      case 401:
+        return 'Session expired — please log in again.';
+      case 409:
+        return 'Conflict — another user may have modified this asset. Refresh and try again.';
+      case 404:
+        return 'Asset not found — it may have been deleted.';
+      default:
+        return err.error?.message ?? err.message ?? 'Server error';
+    }
   }
 
   log(action: string, detail: string): void {
