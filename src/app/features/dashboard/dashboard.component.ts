@@ -161,7 +161,6 @@ import { ConfirmationService } from 'primeng/api';
               [icon]="saving ? 'pi pi-spin pi-spinner' : 'pi pi-save'"
               severity="primary"
               size="small"
-              [disabled]="!hasUnsavedChanges || saving"
               (click)="saveChanges()"
             ></button>
           </div>
@@ -207,7 +206,13 @@ import { ConfirmationService } from 'primeng/api';
               <td pEditableColumn class="font-medium">
                 <p-cellEditor>
                   <ng-template pTemplate="input">
-                    <input pInputText type="text" [(ngModel)]="asset.name" class="w-full" />
+                    <input
+                      pInputText
+                      type="text"
+                      [(ngModel)]="asset.name"
+                      class="w-full"
+                      (ngModelChange)="onNameChange(asset)"
+                    />
                   </ng-template>
                   <ng-template pTemplate="output">{{ asset.name }}</ng-template>
                 </p-cellEditor>
@@ -245,6 +250,7 @@ import { ConfirmationService } from 'primeng/api';
                       type="number"
                       [(ngModel)]="asset.value"
                       class="w-full text-right"
+                      (ngModelChange)="onValueChange(asset)"
                     />
                   </ng-template>
                   <ng-template pTemplate="output">
@@ -393,6 +399,19 @@ export class DashboardComponent implements OnInit {
     }
   }
 
+  onNameChange(asset: Asset): void {
+    this.dirtyIds.add(asset.id);
+    this.saveError = '';
+    this.rebuildDuplicates();
+  }
+
+  onValueChange(asset: Asset): void {
+    asset.value = +asset.value;
+    this.dirtyIds.add(asset.id);
+    this.saveError = '';
+    this.recalcStats();
+  }
+
   onTypeChange(asset: Asset): void {
     if (asset.type) {
       this.dirtyIds.add(asset.id);
@@ -513,11 +532,13 @@ export class DashboardComponent implements OnInit {
         this.saving = false;
         this.originalAssets = this.assets.map((a) => ({ ...a }));
         this.rebuildDuplicates();
+        this.cdr.detectChanges();
       },
       error: (err: HttpErrorResponse) => {
         this.saveError = this.httpErrorMessage(err);
         this.log('Save Changes', `Failed — HTTP ${err.status}: ${this.saveError}`);
         this.saving = false;
+        this.cdr.detectChanges();
       },
     });
   }

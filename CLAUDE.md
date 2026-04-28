@@ -31,7 +31,9 @@ There is no single-test or lint command configured. Tests use **Vitest** (not Ka
 
 ### HTTP & JWT
 
-`HttpClient` is configured globally in `app.config.ts` with `withInterceptors([jwtInterceptor])`. The interceptor reads the token from `localStorage` via `AuthService.getToken()` and attaches `Authorization: Bearer <token>` to every request.
+`HttpClient` is configured globally in `app.config.ts` with `withInterceptors([jwtInterceptor])`. The interceptor handles both directions:
+- **Outbound:** attaches `Authorization: Bearer <token>` if a token exists in localStorage
+- **Inbound:** catches `401` responses, calls `authService.logout()` (clears localStorage, navigates to `/login`), then re-throws so component-level error handlers also see the error
 
 **Critical:** `AuthService` injects `HttpBackend` (not `HttpClient`) to avoid a circular dependency:
 ```
@@ -88,3 +90,18 @@ The dashboard tracks unsaved changes locally before committing to the API:
 - `filteredAssets` — derived view after search/type/status filters; holds references to the same objects as `assets`
 
 `saveChanges()` uses `forkJoin` over HTTP observables (POST for new rows, PUT for edits). Deletes are optimistic — UI removes the row immediately, then fires `DELETE` in the background.
+
+### Known Patterns & Gotchas
+
+**NG0100 prevention — always end async subscribe callbacks with `cdr.detectChanges()`:** Fast localhost HTTP responses arrive as microtasks and can land between Angular's two dev-mode change detection passes. Currently applied in `doRefresh()` and both `next`/`error` callbacks of `saveChanges()`. Any new subscribe callback that flips template-visible state must also call `this.cdr.detectChanges()` at the end.
+
+**Dirty tracking via `ngModelChange`, not `onEditComplete`:** PrimeNG's table `onEditComplete` event is unreliable — it fires only on Enter/blur, and `event.data` can be `undefined`. Each editable input has an explicit `(ngModelChange)` handler instead:
+- Name → `onNameChange(asset)` — marks dirty, calls `rebuildDuplicates()`
+- Value → `onValueChange(asset)` — marks dirty, coerces `+asset.value`, calls `recalcStats()`
+- Type → `onTypeChange(asset)` via autocomplete `(onSelect)`/`(onBlur)` — marks dirty, calls `rebuildTypeOptions()` + `recalcStats()`
+
+Status and Last Updated are display-only — do not add `ngModelChange` to them.
+
+**HTTP error messages:** `DashboardComponent.httpErrorMessage(err: HttpErrorResponse)` maps status codes to user-facing strings (403 → permission denied, 401 → session expired, 409 → conflict, 404 → not found). Add new status codes here, not in individual call sites.
+
+**`POST /api/assets` requires admin role** — the backend returns 403 for regular users. The frontend shows the mapped error message but cannot bypass this; the user must log in with an account that has the admin role.
