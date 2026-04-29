@@ -1,87 +1,179 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ReactiveFormsModule, AbstractControl, FormGroup } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
-import { AssetService } from '../../../core/services/asset.service';
-import { Asset } from '../../../core/models/asset.model';
-import { TableModule } from 'primeng/table';
-import { InputTextModule } from 'primeng/inputtext';
 import { ButtonModule } from 'primeng/button';
+import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
+import { MultiSelectModule } from 'primeng/multiselect';
+import { TableModule } from 'primeng/table';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { TooltipModule } from 'primeng/tooltip';
+import { ConfirmationService } from 'primeng/api';
+import { AssetsStateService } from '../services/assets-state.service';
+import { AuditLogComponent } from '../components/audit-log/audit-log.component';
+import { AssetRowComponent } from '../components/asset-row/asset-row.component';
 
 @Component({
   selector: 'app-assets-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, TableModule, InputTextModule, ButtonModule, SelectModule],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    FormsModule,
+    ButtonModule,
+    InputTextModule,
+    SelectModule,
+    MultiSelectModule,
+    TableModule,
+    ConfirmDialogModule,
+    TooltipModule,
+    AuditLogComponent,
+    AssetRowComponent,
+  ],
+  providers: [ConfirmationService],
   template: `
+    <p-confirmDialog></p-confirmDialog>
     <div class="p-6">
+
+      <!-- Header + Toolbar -->
       <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div>
           <h1 class="text-2xl font-bold text-gray-800">Assets</h1>
           <p class="text-gray-500">Manage your investment portfolio</p>
         </div>
-        <button pButton icon="pi pi-plus" label="Add Asset" severity="primary"></button>
+        <div class="flex items-center gap-2 flex-wrap justify-end">
+          @if (!showAuditLog) {
+            <button pButton type="button" label="Audit Log" icon="pi pi-list"
+              severity="secondary" [outlined]="true" size="small"
+              (click)="showAuditLog = true">
+            </button>
+          }
+          <button pButton type="button" label="Refresh" icon="pi pi-refresh"
+            severity="secondary" [outlined]="true" size="small"
+            (click)="onRefresh()">
+          </button>
+          <button pButton type="button" label="Cancel" icon="pi pi-times"
+            severity="secondary" [outlined]="true" size="small"
+            [disabled]="!state.hasUnsavedChanges"
+            (click)="onCancel()">
+          </button>
+          <button pButton type="button" label="Add Asset" icon="pi pi-plus"
+            severity="secondary" size="small"
+            (click)="onAdd()">
+          </button>
+          <button pButton type="button"
+            [label]="state.saving ? 'Saving...' : 'Save Changes'"
+            [icon]="state.saving ? 'pi pi-spin pi-spinner' : 'pi pi-save'"
+            severity="primary" size="small"
+            [disabled]="!state.hasUnsavedChanges || state.saving"
+            (click)="onSave()">
+          </button>
+        </div>
       </div>
 
       <!-- Filters -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
-        <div class="flex flex-col sm:flex-row gap-4">
+        <div class="flex flex-col sm:flex-row gap-3">
           <div class="flex-1">
-            <input pInputText type="text" [(ngModel)]="searchText" placeholder="Search assets..." class="w-full" (input)="filterAssets()"/>
+            <input pInputText type="text" [(ngModel)]="searchText"
+              placeholder="Search by name..." class="w-full"
+              (input)="applyFilters()" />
           </div>
           <div>
-            <p-select
-              [options]="typeOptions"
-              [(ngModel)]="selectedType"
-              placeholder="Filter by type"
-              (onChange)="filterAssets()"
-              [showClear]="true"
-              styleClass="w-full sm:w-48"
-            ></p-select>
+            <p-multiselect [options]="typeOptions" [(ngModel)]="filterTypes"
+              placeholder="Filter by type" (onChange)="applyFilters()"
+              [showClear]="true" styleClass="w-full sm:w-56">
+            </p-multiselect>
+          </div>
+          <div>
+            <p-select [options]="statusOptions" [(ngModel)]="filterStatus"
+              placeholder="Filter by status" (onChange)="applyFilters()"
+              [showClear]="true" styleClass="w-full sm:w-44">
+            </p-select>
           </div>
         </div>
       </div>
 
+      <!-- Save error banner -->
+      @if (state.saveError) {
+        <div class="bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4 flex items-center gap-2 text-sm text-red-700">
+          <i class="pi pi-exclamation-circle"></i>
+          {{ state.saveError }}
+        </div>
+      }
+
       <!-- Table -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <p-table
-          [value]="filteredAssets"
+          [value]="filteredControls"
           [rows]="10"
           [paginator]="true"
           [rowsPerPageOptions]="[5, 10, 25]"
-          styleClass="p-datatable-sm p-datatable-gridlines"
+          styleClass="p-datatable-sm"
         >
           <ng-template pTemplate="header">
             <tr>
-              <th pSortableColumn="name">Name <p-sortIcon field="name"></p-sortIcon></th>
-              <th pSortableColumn="type">Type <p-sortIcon field="type"></p-sortIcon></th>
-              <th pSortableColumn="value" class="text-right">Value <p-sortIcon field="value"></p-sortIcon></th>
-              <th>Currency</th>
-              <th pSortableColumn="status">Status <p-sortIcon field="status"></p-sortIcon></th>
-              <th pSortableColumn="lastUpdated">Last Updated <p-sortIcon field="lastUpdated"></p-sortIcon></th>
-              <th>Actions</th>
+              <th style="width:2.5rem"></th>
+              <th>Name</th>
+              <th>Type</th>
+              <th class="text-right" style="width:10rem">Value</th>
+              <th style="width:8rem">Status</th>
+              <th style="width:9rem">Last Updated</th>
+              <th style="width:3rem"></th>
             </tr>
           </ng-template>
-          <ng-template pTemplate="body" let-asset>
-            <tr>
-              <td class="font-medium">{{ asset.name }}</td>
-              <td><span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-medium">{{ asset.type }}</span></td>
-              <td class="text-right font-mono">{{ asset.value | number:'1.2-2' }}</td>
-              <td>{{ asset.currency }}</td>
-              <td>
-                <span [class]="asset.status === 'Active' ? 'bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-medium' : 'bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs font-medium'">
-                  {{ asset.status }}
-                </span>
-              </td>
-              <td class="text-gray-500 text-sm">{{ asset.lastUpdated }}</td>
-              <td>
-                <div class="flex gap-1">
-                  <button pButton icon="pi pi-eye" severity="secondary" [text]="true" size="small"></button>
-                  <button pButton icon="pi pi-pencil" severity="secondary" [text]="true" size="small"></button>
-                  <button pButton icon="pi pi-trash" severity="danger" [text]="true" size="small"></button>
-                </div>
-              </td>
-            </tr>
+
+          <ng-template pTemplate="body" let-ctrl>
+            @let rowId = getRowId(ctrl);
+            <tr
+              appAssetRow
+              [rowGroup]="asFormGroup(ctrl)"
+              [isDeleted]="state.deletedIds.has(rowId)"
+              [isNew]="rowId.startsWith('new-')"
+              [expanded]="expandedIds.has(rowId)"
+              [knownTypes]="state.knownTypes"
+              (toggleExpand)="toggleRow(rowId)"
+              (deleteClicked)="onMarkDeleted(rowId)"
+              (restoreClicked)="onRestoreDeleted(rowId)"
+              [class.opacity-50]="state.deletedIds.has(rowId)"
+              [class.bg-red-50]="state.deletedIds.has(rowId)"
+              [class.line-through]="state.deletedIds.has(rowId)"
+              [class.bg-blue-50]="rowId.startsWith('new-') && !state.deletedIds.has(rowId)"
+              [class.border-l-4]="rowId.startsWith('new-') && !state.deletedIds.has(rowId)"
+              [class.border-blue-400]="rowId.startsWith('new-') && !state.deletedIds.has(rowId)"
+            ></tr>
+
+            @if (expandedIds.has(rowId)) {
+              <tr class="bg-gray-50 border-t border-gray-100">
+                <td colspan="7" class="px-6 py-4">
+                  <div [formGroup]="asFormGroup(ctrl)"
+                    class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label class="block text-xs font-medium text-gray-600 mb-1">Description</label>
+                      <textarea
+                        formControlName="description"
+                        class="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                        rows="2"
+                        placeholder="Optional description"
+                      ></textarea>
+                    </div>
+                    <div>
+                      <label class="block text-xs font-medium text-gray-600 mb-1">Serial Number</label>
+                      <input pInputText type="text" formControlName="serialNumber"
+                        class="w-full text-sm" placeholder="e.g. SN-12345" />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-medium text-gray-600 mb-1">Purchase Date</label>
+                      <input pInputText type="date" formControlName="purchaseDate"
+                        class="w-full text-sm" />
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            }
           </ng-template>
+
           <ng-template pTemplate="emptymessage">
             <tr>
               <td colspan="7" class="text-center py-8 text-gray-400">No assets found.</td>
@@ -89,34 +181,150 @@ import { SelectModule } from 'primeng/select';
           </ng-template>
         </p-table>
       </div>
+
+      <!-- Audit Log -->
+      @if (showAuditLog) {
+        <app-audit-log
+          [entries]="state.auditLog"
+          (close)="showAuditLog = false"
+          (clear)="onClearLog()"
+        ></app-audit-log>
+      }
+
     </div>
-  `
+  `,
 })
 export class AssetsListComponent implements OnInit {
-  assets: Asset[] = [];
-  filteredAssets: Asset[] = [];
   searchText = '';
-  selectedType: string | null = null;
-  typeOptions: { label: string; value: string }[] = [];
+  filterTypes: string[] = [];
+  filterStatus: string | null = null;
+  showAuditLog = false;
+  expandedIds = new Set<string>();
+  filteredControls: AbstractControl[] = [];
 
-  constructor(private assetService: AssetService) {}
+  typeOptions: { label: string; value: string }[] = [];
+  readonly statusOptions = [
+    { label: 'Active',   value: 'Active'   },
+    { label: 'Inactive', value: 'Inactive' },
+  ];
+
+  constructor(
+    readonly state: AssetsStateService,
+    private confirmationService: ConfirmationService,
+    private cdr: ChangeDetectorRef,
+  ) {}
 
   ngOnInit(): void {
-    this.assetService.getAssets().subscribe(assets => {
-      this.assets = assets;
-      this.filteredAssets = assets;
-      const types = [...new Set(assets.map(a => a.type))];
-      this.typeOptions = types.map(t => ({ label: t, value: t }));
+    this.state.loadAssets(() => {
+      this._rebuildTypeOptions();
+      this.applyFilters();
+      this.cdr.detectChanges();
     });
   }
 
-  filterAssets(): void {
-    this.filteredAssets = this.assets.filter(a => {
-      const matchesSearch = !this.searchText ||
-        a.name.toLowerCase().includes(this.searchText.toLowerCase()) ||
-        a.type.toLowerCase().includes(this.searchText.toLowerCase());
-      const matchesType = !this.selectedType || a.type === this.selectedType;
-      return matchesSearch && matchesType;
+  applyFilters(): void {
+    this.filteredControls = this.state.rows.controls.filter(ctrl => {
+      const name   = ((ctrl.get('name')?.value   as string) ?? '').toLowerCase();
+      const type   =  (ctrl.get('type')?.value   as string) ?? '';
+      const status =  (ctrl.get('status')?.value as string) ?? '';
+      const matchSearch = !this.searchText || name.includes(this.searchText.toLowerCase());
+      const matchType   = this.filterTypes.length === 0 || this.filterTypes.includes(type);
+      const matchStatus = !this.filterStatus || status === this.filterStatus;
+      return matchSearch && matchType && matchStatus;
     });
+  }
+
+  toggleRow(id: string): void {
+    if (this.expandedIds.has(id)) {
+      this.expandedIds.delete(id);
+    } else {
+      this.expandedIds.add(id);
+    }
+  }
+
+  asFormGroup(ctrl: AbstractControl): FormGroup {
+    return ctrl as FormGroup;
+  }
+
+  getRowId(ctrl: AbstractControl): string {
+    return ((ctrl as FormGroup).get('id')?.value as string) ?? '';
+  }
+
+  onAdd(): void {
+    this.state.addRow();
+    this._rebuildTypeOptions();
+    this.applyFilters();
+    this.cdr.detectChanges();
+  }
+
+  onSave(): void {
+    this.state.saveChanges(() => {
+      this._rebuildTypeOptions();
+      this.applyFilters();
+      this.cdr.detectChanges();
+    });
+  }
+
+  onCancel(): void {
+    if (!this.state.hasUnsavedChanges) return;
+    this.confirmationService.confirm({
+      header: 'Unsaved Changes',
+      message: 'You have unsaved changes. This will discard all edits. Continue?',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Discard & Continue',
+      rejectLabel: 'Keep Editing',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => {
+        this.state.cancelChanges(() => {
+          this._rebuildTypeOptions();
+          this.applyFilters();
+          this.expandedIds.clear();
+          this.cdr.detectChanges();
+        });
+      },
+    });
+  }
+
+  onRefresh(): void {
+    const doRefresh = () => {
+      this.state.loadAssets(() => {
+        this._rebuildTypeOptions();
+        this.applyFilters();
+        this.expandedIds.clear();
+        this.cdr.detectChanges();
+      });
+    };
+    if (this.state.hasUnsavedChanges) {
+      this.confirmationService.confirm({
+        header: 'Unsaved Changes',
+        message: 'Refreshing will discard all unsaved edits. Continue?',
+        icon: 'pi pi-exclamation-triangle',
+        acceptLabel: 'Refresh & Discard',
+        rejectLabel: 'Keep Editing',
+        acceptButtonStyleClass: 'p-button-danger',
+        accept: doRefresh,
+      });
+    } else {
+      doRefresh();
+    }
+  }
+
+  onMarkDeleted(id: string): void {
+    this.state.markDeleted(id);
+    this.cdr.detectChanges();
+  }
+
+  onRestoreDeleted(id: string): void {
+    this.state.restoreDeleted(id);
+    this.cdr.detectChanges();
+  }
+
+  onClearLog(): void {
+    this.state.clearLog();
+    this.cdr.detectChanges();
+  }
+
+  private _rebuildTypeOptions(): void {
+    this.typeOptions = this.state.knownTypes.map(t => ({ label: t, value: t }));
   }
 }
