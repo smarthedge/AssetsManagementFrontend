@@ -19,6 +19,7 @@ export class AssetsStateService {
   saveError = '';
   auditLog: LogEntry[] = [];
   private logCounter = 0;
+  private loadSub?: import('rxjs').Subscription;
 
   get rows(): FormArray {
     return this.form.get('rows') as FormArray;
@@ -37,14 +38,22 @@ export class AssetsStateService {
   }
 
   loadAssets(onDone: () => void): void {
-    this.assetSvc.getAssets().subscribe(assets => {
-      this.originalAssets = assets.map(a => ({ ...a }));
-      this._rebuildFormArray(assets);
-      this.deletedIds.clear();
-      this.saveError = '';
-      this.form.markAsPristine();
-      this.log('Load', `Loaded ${assets.length} asset(s)`);
-      onDone();
+    this.loadSub?.unsubscribe();
+    this.loadSub = this.assetSvc.getAssets().subscribe({
+      next: assets => {
+        this.originalAssets = assets.map(a => ({ ...a }));
+        this._rebuildFormArray(assets);
+        this.deletedIds.clear();
+        this.saveError = '';
+        this.form.markAsPristine();
+        this.log('Load', `Loaded ${assets.length} asset(s)`);
+        onDone();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.saveError = this._httpError(err);
+        this.log('Load', `Failed — ${err.status}: ${this.saveError}`);
+        onDone();
+      },
     });
   }
 
@@ -71,6 +80,9 @@ export class AssetsStateService {
     const name = this._getRowName(id);
     this.deletedIds.delete(id);
     this.log('Restore', `Restored "${name}"`);
+    if (this.deletedIds.size === 0 && !this.rows.controls.some(c => c.dirty)) {
+      this.form.markAsPristine();
+    }
   }
 
   cancelChanges(onDone: () => void): void {
@@ -109,7 +121,7 @@ export class AssetsStateService {
 
     for (const id of this.deletedIds) {
       if (this.originalAssets.some(o => o.id === id)) {
-        this.log('API', `DELETE /api/assets/${id}`);
+        this.log('Queued', `DELETE /api/assets/${id}`);
         ops.push(this.assetSvc.deleteAsset(id));
       }
     }
@@ -118,10 +130,10 @@ export class AssetsStateService {
       const id = ctrl.get('id')!.value as string;
       const asset = this._rowToAsset(ctrl as FormGroup);
       if (id.startsWith('new-')) {
-        this.log('API', `POST /api/assets "${asset.name}"`);
+        this.log('Queued', `POST /api/assets "${asset.name}"`);
         ops.push(this.assetSvc.addAsset(asset));
       } else if (ctrl.dirty) {
-        this.log('API', `PUT /api/assets/${id} "${asset.name}"`);
+        this.log('Queued', `PUT /api/assets/${id} "${asset.name}"`);
         ops.push(this.assetSvc.updateAsset(id, asset));
       }
     }
@@ -215,8 +227,11 @@ export class AssetsStateService {
       case 401: return 'Session expired — please log in again.';
       case 409: return 'Conflict — another user may have modified this asset. Refresh and try again.';
       case 404: return 'Asset not found — it may have been deleted.';
-      default:
-        return (err.error as { message?: string })?.message ?? err.message ?? 'Server error';
+      default: {
+        const body = err.error;
+        const bodyMsg = typeof body === 'object' && body !== null ? (body as { message?: string }).message : undefined;
+        return bodyMsg ?? err.message ?? 'Server error';
+      }
     }
   }
 }
