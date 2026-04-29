@@ -97,7 +97,7 @@ import { AssetRowComponent } from '../components/asset-row/asset-row.component';
 
       <!-- Save error banner -->
       @if (state.saveError) {
-        <div class="bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4 flex items-center gap-2 text-sm text-red-700">
+        <div role="alert" class="bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4 flex items-center gap-2 text-sm text-red-700">
           <i class="pi pi-exclamation-circle"></i>
           {{ state.saveError }}
         </div>
@@ -150,8 +150,9 @@ import { AssetRowComponent } from '../components/asset-row/asset-row.component';
                   <div [formGroup]="asFormGroup(ctrl)"
                     class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <label class="block text-xs font-medium text-gray-600 mb-1">Description</label>
+                      <label [for]="'desc-' + rowId" class="block text-xs font-medium text-gray-600 mb-1">Description</label>
                       <textarea
+                        [id]="'desc-' + rowId"
                         formControlName="description"
                         class="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-400"
                         rows="2"
@@ -159,13 +160,13 @@ import { AssetRowComponent } from '../components/asset-row/asset-row.component';
                       ></textarea>
                     </div>
                     <div>
-                      <label class="block text-xs font-medium text-gray-600 mb-1">Serial Number</label>
-                      <input pInputText type="text" formControlName="serialNumber"
+                      <label [for]="'sn-' + rowId" class="block text-xs font-medium text-gray-600 mb-1">Serial Number</label>
+                      <input pInputText type="text" [id]="'sn-' + rowId" formControlName="serialNumber"
                         class="w-full text-sm" placeholder="e.g. SN-12345" />
                     </div>
                     <div>
-                      <label class="block text-xs font-medium text-gray-600 mb-1">Purchase Date</label>
-                      <input pInputText type="date" formControlName="purchaseDate"
+                      <label [for]="'pd-' + rowId" class="block text-xs font-medium text-gray-600 mb-1">Purchase Date</label>
+                      <input pInputText type="date" [id]="'pd-' + rowId" formControlName="purchaseDate"
                         class="w-full text-sm" />
                     </div>
                   </div>
