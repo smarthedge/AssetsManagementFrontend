@@ -4,7 +4,11 @@
       "WebFetch(domain:localhost)",
       "Bash(curl -s http://localhost:8080/api-docs)",
       "Bash(git *)",
-      "Skill(commit-commands:commit)"
+      "Skill(commit-commands:commit)",
+      "Bash(npm test *)",
+      "Bash(grep -v \"^$\")",
+      "Bash(npm run *)",
+      "Bash(node *)"
     ]
   }
 }
