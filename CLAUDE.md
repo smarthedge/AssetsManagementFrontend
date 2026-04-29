@@ -66,6 +66,12 @@ The UI `Asset` interface does **not** match the API `AssetResponse` 1:1. `AssetS
 | `lastUpdated` | `lastChangedDateTime` | trimmed to `YYYY-MM-DD` |
 | `currency` | — | not in API; always `'USD'` |
 | `id` | `id` (number) | stringified |
+| `description` | `description` | optional |
+| `serialNumber` | `serialNumber` | optional |
+| `purchaseDate` | `purchaseDate` | optional |
+| `version` | `version` | optional; for optimistic concurrency |
+
+`toRequest` omits `status` — the API derives active/inactive from context, not a writable boolean.
 
 ### Styling
 
@@ -79,9 +85,30 @@ Tailwind v4 requires two PostCSS config files: `postcss.config.json` (esbuild/pr
 
 **PrimeNG 21** with the **Aura** theme preset (configured in `app.config.ts`). `ConfirmationService` must be in component-level `providers: []`, not root — scoping it to root causes dialog conflicts across routes.
 
+### Assets Page Architecture (`/assets`)
+
+The assets page uses a **reactive-form CRUD** pattern split across three layers:
+
+**`AssetsStateService`** (`providedIn: 'root'`) owns all mutable state:
+
+- `form: FormGroup` with a single `rows: FormArray` — one `FormGroup` per asset
+- `originalAssets: Asset[]` — snapshot at last load/save; used to distinguish new rows (`POST`) from edits (`PUT`)
+- `deletedIds: Set<string>` — IDs soft-deleted in the UI but not yet sent to the API
+- `hasUnsavedChanges` — `form.dirty || deletedIds.size > 0`
+- `knownTypes: string[]` — derived live from current row values; drives the type autocomplete
+- `auditLog: LogEntry[]` — capped at 50 entries, newest first
+
+New rows get `id: 'new-<timestamp>'`. `saveChanges()` uses this prefix to route `POST` vs `PUT`. After a successful save it calls `loadAssets()` to re-sync.
+
+**`AssetsListComponent`** is a thin coordinator: it holds filter state (`searchText`, `filterTypes`, `filterStatus`), calls `state.*` methods, and calls `cdr.detectChanges()` in every callback.
+
+**`AssetRowComponent`** uses an **attribute selector** (`selector: '[appAssetRow]'`) so it renders as a `<tr>` element without a wrapper tag. It receives a `FormGroup` via `[rowGroup]` input and emits `deleteClicked`/`restoreClicked`/`toggleExpand` events.
+
+**`AuditLogComponent`** is display-only: receives `LogEntry[]`, emits `close`/`clear` events.
+
 ### Dashboard Component State Machine
 
-The dashboard tracks unsaved changes locally before committing to the API:
+The dashboard (`/dashboard`) independently tracks unsaved changes before committing to the API (separate from `AssetsStateService`):
 
 - `assets` — mutable working copy (spread from API response on load/refresh)
 - `originalAssets` — snapshot at last load or successful save; used to distinguish new rows (`POST`) from edits (`PUT`)
@@ -93,15 +120,19 @@ The dashboard tracks unsaved changes locally before committing to the API:
 
 ### Known Patterns & Gotchas
 
-**NG0100 prevention — always end async subscribe callbacks with `cdr.detectChanges()`:** Fast localhost HTTP responses arrive as microtasks and can land between Angular's two dev-mode change detection passes. Currently applied in `doRefresh()` and both `next`/`error` callbacks of `saveChanges()`. Any new subscribe callback that flips template-visible state must also call `this.cdr.detectChanges()` at the end.
+**NG0100 prevention — always end async subscribe callbacks with `cdr.detectChanges()`:** Fast localhost HTTP responses arrive as microtasks and can land between Angular's two dev-mode change detection passes. Every `AssetsListComponent` and `DashboardComponent` callback that mutates template-visible state must call `this.cdr.detectChanges()` at the end.
 
-**Dirty tracking via `ngModelChange`, not `onEditComplete`:** PrimeNG's table `onEditComplete` event is unreliable — it fires only on Enter/blur, and `event.data` can be `undefined`. Each editable input has an explicit `(ngModelChange)` handler instead:
-- Name → `onNameChange(asset)` — marks dirty, calls `rebuildDuplicates()`
-- Value → `onValueChange(asset)` — marks dirty, coerces `+asset.value`, calls `recalcStats()`
-- Type → `onTypeChange(asset)` via autocomplete `(onSelect)`/`(onBlur)` — marks dirty, calls `rebuildTypeOptions()` + `recalcStats()`
+**Assets page dirty tracking uses Angular reactive forms:** `form.dirty` (set by `FormArray` controls) plus `deletedIds.size > 0`. Do not replicate the dashboard's manual `dirtyIds: Set<string>` approach in the assets page.
 
-Status and Last Updated are display-only — do not add `ngModelChange` to them.
+**`AssetRowComponent` is an attribute-selector component:** Its selector is `[appAssetRow]`, applied to a `<tr>` in `AssetsListComponent`'s template. Pass the `FormGroup` via `[rowGroup]`, not `[formGroup]`, to avoid conflicts with Angular's own `FormGroupDirective`.
 
-**HTTP error messages:** `DashboardComponent.httpErrorMessage(err: HttpErrorResponse)` maps status codes to user-facing strings (403 → permission denied, 401 → session expired, 409 → conflict, 404 → not found). Add new status codes here, not in individual call sites.
+**HTTP error mapping locations:**
+
+- Assets page → `AssetsStateService._httpError()` (private)
+- Dashboard → `DashboardComponent.httpErrorMessage()`
+
+Add new status codes to both. Mapping: 403 → permission denied, 401 → session expired, 409 → conflict, 404 → not found.
+
+**Save validation before HTTP calls:** `AssetsStateService.saveChanges()` validates required fields and unique names client-side before firing any HTTP request. It calls `markAllAsTouched()` on invalid rows to surface inline errors.
 
 **`POST /api/assets` requires admin role** — the backend returns 403 for regular users. The frontend shows the mapped error message but cannot bypass this; the user must log in with an account that has the admin role.
