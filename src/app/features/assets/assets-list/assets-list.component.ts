@@ -1,5 +1,5 @@
-import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectorRef, Component, DestroyRef, OnInit } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule, AbstractControl, FormGroup } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -18,7 +18,6 @@ import { AssetRowComponent } from '../components/asset-row/asset-row.component';
   selector: 'app-assets-list',
   standalone: true,
   imports: [
-    CommonModule,
     ReactiveFormsModule,
     FormsModule,
     ButtonModule,
@@ -213,13 +212,22 @@ export class AssetsListComponent implements OnInit {
     readonly state: AssetsStateService,
     private confirmationService: ConfirmationService,
     private cdr: ChangeDetectorRef,
+    private destroyRef: DestroyRef,
   ) {}
 
   ngOnInit(): void {
+    this.state.saveError = '';
+    this.state.saving = false;
     this.state.loadAssets(() => {
       this._rebuildTypeOptions();
       this.applyFilters();
       this.cdr.detectChanges();
+    });
+    this.state.form.valueChanges.pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe(() => {
+      this._rebuildTypeOptions();
+      this.applyFilters();
     });
   }
 
