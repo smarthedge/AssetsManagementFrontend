@@ -119,26 +119,34 @@ export class AssetRowComponent {
   @Input() isNew = false;
   @Input() expanded = false;
   @Input() knownTypes: string[] = [];
-  @Output() deleteClicked  = new EventEmitter<void>();
+  @Output() deleteClicked = new EventEmitter<void>();
   @Output() restoreClicked = new EventEmitter<void>();
-  @Output() toggleExpand   = new EventEmitter<void>();
+  @Output() toggleExpand = new EventEmitter<void>();
 
   typeSuggestions: string[] = [];
 
   readonly statusOptions = [
-    { label: 'Active',   value: 'Active'   },
+    { label: 'Active', value: 'Active' },
     { label: 'Inactive', value: 'Inactive' },
   ];
 
-  get nameCtrl():   FormControl { return this.rowGroup.get('name')!   as FormControl; }
-  get typeCtrl():   FormControl { return this.rowGroup.get('type')!   as FormControl; }
-  get valueCtrl():  FormControl { return this.rowGroup.get('value')!  as FormControl; }
-  get statusCtrl(): FormControl { return this.rowGroup.get('status')! as FormControl; }
+  get nameCtrl(): FormControl {
+    return this.rowGroup.get('name')! as FormControl;
+  }
+  get typeCtrl(): FormControl {
+    return this.rowGroup.get('type')! as FormControl;
+  }
+  get valueCtrl(): FormControl {
+    return this.rowGroup.get('value')! as FormControl;
+  }
+  get statusCtrl(): FormControl {
+    return this.rowGroup.get('status')! as FormControl;
+  }
 
   onSearchType(event: { query: string }): void {
     const q = event.query.trim().toLowerCase();
-    const matches = this.knownTypes.filter(t => t.toLowerCase().includes(q));
-    if (q && !this.knownTypes.some(t => t.toLowerCase() === q)) {
+    const matches = this.knownTypes.filter((t) => t.toLowerCase().includes(q));
+    if (q && !this.knownTypes.some((t) => t.toLowerCase() === q)) {
       this.typeSuggestions = [event.query.trim(), ...matches];
     } else {
       this.typeSuggestions = matches;

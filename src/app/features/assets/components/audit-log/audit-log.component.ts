@@ -42,7 +42,12 @@ export interface LogEntry {
           ></button>
         </div>
       </div>
-      <div class="divide-y divide-gray-50 max-h-48 overflow-y-auto" role="log" tabindex="0" aria-label="Audit log entries">
+      <div
+        class="divide-y divide-gray-50 max-h-48 overflow-y-auto"
+        role="log"
+        tabindex="0"
+        aria-label="Audit log entries"
+      >
         @for (entry of entries; track entry.id) {
           <div class="px-5 py-2 flex items-start gap-4 text-xs">
             <span class="text-gray-400 shrink-0 font-mono">{{ entry.time }}</span>

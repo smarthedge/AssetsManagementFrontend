@@ -8,16 +8,21 @@ import { AssetService } from '../../../core/services/asset.service';
 import { Asset } from '../../../core/models/asset.model';
 
 const mockAsset: Asset = {
-  id: '1', name: 'Gold', type: 'Commodity', value: 5000,
-  currency: 'USD', status: 'Active', lastUpdated: '2026-01-01',
+  id: '1',
+  name: 'Gold',
+  type: 'Commodity',
+  value: 5000,
+  currency: 'USD',
+  status: 'Active',
+  lastUpdated: '2026-01-01',
 };
 
 function makeSvc(overrides: Record<string, unknown> = {}) {
   return {
-    getAssets:    vi.fn().mockReturnValue(of([mockAsset])),
-    addAsset:     vi.fn().mockReturnValue(of({ ...mockAsset, id: '2' })),
-    updateAsset:  vi.fn().mockReturnValue(of(mockAsset)),
-    deleteAsset:  vi.fn().mockReturnValue(of(undefined)),
+    getAssets: vi.fn().mockReturnValue(of([mockAsset])),
+    addAsset: vi.fn().mockReturnValue(of({ ...mockAsset, id: '2' })),
+    updateAsset: vi.fn().mockReturnValue(of(mockAsset)),
+    deleteAsset: vi.fn().mockReturnValue(of(undefined)),
     getAssetById: vi.fn().mockReturnValue(of(mockAsset)),
     ...overrides,
   };
@@ -31,17 +36,16 @@ describe('AssetsStateService', () => {
     assetSvc = makeSvc();
     TestBed.configureTestingModule({
       imports: [ReactiveFormsModule],
-      providers: [
-        AssetsStateService,
-        { provide: AssetService, useValue: assetSvc },
-      ],
+      providers: [AssetsStateService, { provide: AssetService, useValue: assetSvc }],
     });
     service = TestBed.inject(AssetsStateService);
   });
 
   it('loadAssets builds FormArray and calls onDone', () => {
     let done = false;
-    service.loadAssets(() => { done = true; });
+    service.loadAssets(() => {
+      done = true;
+    });
     expect(done).toBe(true);
     expect(service.rows.length).toBe(1);
     expect(service.rows.at(0).get('name')?.value).toBe('Gold');
@@ -89,22 +93,23 @@ describe('AssetsStateService', () => {
     service.rows.at(0).get('name')!.setValue('');
     service.form.markAsDirty();
     let done = false;
-    service.saveChanges(() => { done = true; });
+    service.saveChanges(() => {
+      done = true;
+    });
     expect(done).toBe(true);
     expect(service.saveError).toContain('validation');
     expect(assetSvc.updateAsset).not.toHaveBeenCalled();
   });
 
   it('saveChanges blocks on duplicate names', () => {
-    assetSvc.getAssets.mockReturnValue(of([
-      mockAsset,
-      { ...mockAsset, id: '2', name: 'Gold' },
-    ]));
+    assetSvc.getAssets.mockReturnValue(of([mockAsset, { ...mockAsset, id: '2', name: 'Gold' }]));
     service.loadAssets(() => {});
     service.rows.at(0).markAsDirty();
     service.form.markAsDirty();
     let done = false;
-    service.saveChanges(() => { done = true; });
+    service.saveChanges(() => {
+      done = true;
+    });
     expect(done).toBe(true);
     expect(service.saveError).toContain('Duplicate');
   });
@@ -140,14 +145,17 @@ describe('AssetsStateService', () => {
     service.rows.at(0).get('name')!.setValue('Gold Updated');
     service.rows.at(0).markAsDirty();
     service.saveChanges(() => {});
-    expect(assetSvc.updateAsset).toHaveBeenCalledWith('1', expect.objectContaining({ name: 'Gold Updated' }));
+    expect(assetSvc.updateAsset).toHaveBeenCalledWith(
+      '1',
+      expect.objectContaining({ name: 'Gold Updated' }),
+    );
   });
 
   it('saveChanges sets saveError on HTTP 403', () => {
     service.loadAssets(() => {});
     service.markDeleted('1');
     assetSvc.deleteAsset.mockReturnValue(
-      throwError(() => new HttpErrorResponse({ status: 403, statusText: 'Forbidden' }))
+      throwError(() => new HttpErrorResponse({ status: 403, statusText: 'Forbidden' })),
     );
     service.saveChanges(() => {});
     expect(service.saveError).toContain('Permission denied');

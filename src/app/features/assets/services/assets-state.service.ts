@@ -30,18 +30,18 @@ export class AssetsStateService {
   }
 
   get knownTypes(): string[] {
-    return [...new Set(
-      this.rows.controls
-        .map(c => (c.get('type')?.value as string) ?? '')
-        .filter(Boolean),
-    )].sort();
+    return [
+      ...new Set(
+        this.rows.controls.map((c) => (c.get('type')?.value as string) ?? '').filter(Boolean),
+      ),
+    ].sort();
   }
 
   loadAssets(onDone: () => void): void {
     this.loadSub?.unsubscribe();
     this.loadSub = this.assetSvc.getAssets().subscribe({
-      next: assets => {
-        this.originalAssets = assets.map(a => ({ ...a }));
+      next: (assets) => {
+        this.originalAssets = assets.map((a) => ({ ...a }));
         this._rebuildFormArray(assets);
         this.deletedIds.clear();
         this.saveError = '';
@@ -61,8 +61,12 @@ export class AssetsStateService {
     const today = new Date().toISOString().split('T')[0];
     const newRow: Asset = {
       id: `new-${Date.now()}`,
-      name: '', type: '', value: 0,
-      currency: 'USD', status: 'Active', lastUpdated: today,
+      name: '',
+      type: '',
+      value: 0,
+      currency: 'USD',
+      status: 'Active',
+      lastUpdated: today,
     };
     this.rows.insert(0, this._buildRow(newRow));
     this.form.markAsDirty();
@@ -80,7 +84,7 @@ export class AssetsStateService {
     const name = this._getRowName(id);
     this.deletedIds.delete(id);
     this.log('Restore', `Restored "${name}"`);
-    if (this.deletedIds.size === 0 && !this.rows.controls.some(c => c.dirty)) {
+    if (this.deletedIds.size === 0 && !this.rows.controls.some((c) => c.dirty)) {
       this.form.markAsPristine();
     }
   }
@@ -96,18 +100,18 @@ export class AssetsStateService {
 
   saveChanges(onDone: () => void): void {
     const activeRows = this.rows.controls.filter(
-      c => !this.deletedIds.has(c.get('id')!.value as string),
+      (c) => !this.deletedIds.has(c.get('id')!.value as string),
     );
 
-    if (activeRows.some(c => c.invalid)) {
-      activeRows.forEach(c => c.markAllAsTouched());
+    if (activeRows.some((c) => c.invalid)) {
+      activeRows.forEach((c) => c.markAllAsTouched());
       this.saveError = 'Please fix all validation errors before saving.';
       this.log('Save', 'Blocked — validation errors');
       onDone();
       return;
     }
 
-    const names = activeRows.map(c =>
+    const names = activeRows.map((c) =>
       ((c.get('name')!.value as string) ?? '').trim().toLowerCase(),
     );
     if (names.some((n, i) => names.indexOf(n) !== i)) {
@@ -120,7 +124,7 @@ export class AssetsStateService {
     const ops: Observable<unknown>[] = [];
 
     for (const id of this.deletedIds) {
-      if (this.originalAssets.some(o => o.id === id)) {
+      if (this.originalAssets.some((o) => o.id === id)) {
         this.log('Queued', `DELETE /api/assets/${id}`);
         ops.push(this.assetSvc.deleteAsset(id));
       }
@@ -168,10 +172,10 @@ export class AssetsStateService {
 
   log(action: string, detail: string): void {
     const time = new Date().toLocaleTimeString();
-    this.auditLog = [
-      { id: ++this.logCounter, time, action, detail },
-      ...this.auditLog,
-    ].slice(0, 50);
+    this.auditLog = [{ id: ++this.logCounter, time, action, detail }, ...this.auditLog].slice(
+      0,
+      50,
+    );
   }
 
   clearLog(): void {
@@ -188,48 +192,55 @@ export class AssetsStateService {
 
   private _buildRow(asset: Asset): FormGroup {
     return this.fb.group({
-      id:           [asset.id],
-      name:         [asset.name         ?? '',       Validators.required],
-      type:         [asset.type         ?? '',       Validators.required],
-      value:        [asset.value        ?? 0,        [Validators.required, Validators.min(0)]],
-      status:       [asset.status       ?? 'Active', Validators.required],
-      description:  [asset.description  ?? ''],
+      id: [asset.id],
+      name: [asset.name ?? '', Validators.required],
+      type: [asset.type ?? '', Validators.required],
+      value: [asset.value ?? 0, [Validators.required, Validators.min(0)]],
+      status: [asset.status ?? 'Active', Validators.required],
+      description: [asset.description ?? ''],
       serialNumber: [asset.serialNumber ?? ''],
       purchaseDate: [asset.purchaseDate ?? ''],
-      lastUpdated:  [asset.lastUpdated  ?? ''],
+      lastUpdated: [asset.lastUpdated ?? ''],
     });
   }
 
   private _rowToAsset(ctrl: FormGroup): Asset {
     const v = ctrl.getRawValue() as Record<string, unknown>;
     return {
-      id:           v['id']          as string,
-      name:         (v['name']         as string) ?? '',
-      type:         (v['type']         as string) ?? '',
-      value:        +(v['value']       ?? 0),
-      currency:     'USD',
-      status:       (v['status']       as 'Active' | 'Inactive') ?? 'Active',
-      lastUpdated:  (v['lastUpdated']  as string) ?? '',
-      description:  (v['description']  as string) || undefined,
+      id: v['id'] as string,
+      name: (v['name'] as string) ?? '',
+      type: (v['type'] as string) ?? '',
+      value: +(v['value'] ?? 0),
+      currency: 'USD',
+      status: (v['status'] as 'Active' | 'Inactive') ?? 'Active',
+      lastUpdated: (v['lastUpdated'] as string) ?? '',
+      description: (v['description'] as string) || undefined,
       serialNumber: (v['serialNumber'] as string) || undefined,
       purchaseDate: (v['purchaseDate'] as string) || undefined,
     };
   }
 
   private _getRowName(id: string): string {
-    const ctrl = this.rows.controls.find(c => c.get('id')?.value === id);
+    const ctrl = this.rows.controls.find((c) => c.get('id')?.value === id);
     return (ctrl?.get('name')?.value as string) ?? id;
   }
 
   private _httpError(err: HttpErrorResponse): string {
     switch (err.status) {
-      case 403: return 'Permission denied — your account role cannot perform this action.';
-      case 401: return 'Session expired — please log in again.';
-      case 409: return 'Conflict — another user may have modified this asset. Refresh and try again.';
-      case 404: return 'Asset not found — it may have been deleted.';
+      case 403:
+        return 'Permission denied — your account role cannot perform this action.';
+      case 401:
+        return 'Session expired — please log in again.';
+      case 409:
+        return 'Conflict — another user may have modified this asset. Refresh and try again.';
+      case 404:
+        return 'Asset not found — it may have been deleted.';
       default: {
         const body = err.error;
-        const bodyMsg = typeof body === 'object' && body !== null ? (body as { message?: string }).message : undefined;
+        const bodyMsg =
+          typeof body === 'object' && body !== null
+            ? (body as { message?: string }).message
+            : undefined;
         return bodyMsg ?? err.message ?? 'Server error';
       }
     }

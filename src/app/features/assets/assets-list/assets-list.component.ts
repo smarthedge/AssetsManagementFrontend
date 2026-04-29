@@ -34,7 +34,6 @@ import { AssetRowComponent } from '../components/asset-row/asset-row.component';
   template: `
     <p-confirmDialog></p-confirmDialog>
     <div class="p-6">
-
       <!-- Header + Toolbar -->
       <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div>
@@ -43,31 +42,57 @@ import { AssetRowComponent } from '../components/asset-row/asset-row.component';
         </div>
         <div class="flex items-center gap-2 flex-wrap justify-end">
           @if (!showAuditLog) {
-            <button pButton type="button" label="Audit Log" icon="pi pi-list"
-              severity="secondary" [outlined]="true" size="small"
-              (click)="showAuditLog = true">
-            </button>
+            <button
+              pButton
+              type="button"
+              label="Audit Log"
+              icon="pi pi-list"
+              severity="secondary"
+              [outlined]="true"
+              size="small"
+              (click)="showAuditLog = true"
+            ></button>
           }
-          <button pButton type="button" label="Refresh" icon="pi pi-refresh"
-            severity="secondary" [outlined]="true" size="small"
-            (click)="onRefresh()">
-          </button>
-          <button pButton type="button" label="Cancel" icon="pi pi-times"
-            severity="secondary" [outlined]="true" size="small"
+          <button
+            pButton
+            type="button"
+            label="Refresh"
+            icon="pi pi-refresh"
+            severity="secondary"
+            [outlined]="true"
+            size="small"
+            (click)="onRefresh()"
+          ></button>
+          <button
+            pButton
+            type="button"
+            label="Cancel"
+            icon="pi pi-times"
+            severity="secondary"
+            [outlined]="true"
+            size="small"
             [disabled]="!state.hasUnsavedChanges"
-            (click)="onCancel()">
-          </button>
-          <button pButton type="button" label="Add Asset" icon="pi pi-plus"
-            severity="secondary" size="small"
-            (click)="onAdd()">
-          </button>
-          <button pButton type="button"
+            (click)="onCancel()"
+          ></button>
+          <button
+            pButton
+            type="button"
+            label="Add Asset"
+            icon="pi pi-plus"
+            severity="secondary"
+            size="small"
+            (click)="onAdd()"
+          ></button>
+          <button
+            pButton
+            type="button"
             [label]="state.saving ? 'Saving...' : 'Save Changes'"
             [icon]="state.saving ? 'pi pi-spin pi-spinner' : 'pi pi-save'"
-            severity="primary" size="small"
+            severity="primary"
+            size="small"
             [disabled]="!state.hasUnsavedChanges || state.saving"
-            (click)="onSave()">
-          </button>
+            (click)="onSave()"
+          ></button>
         </div>
       </div>
 
@@ -75,20 +100,35 @@ import { AssetRowComponent } from '../components/asset-row/asset-row.component';
       <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
         <div class="flex flex-col sm:flex-row gap-3">
           <div class="flex-1">
-            <input pInputText type="text" [(ngModel)]="searchText"
-              placeholder="Search by name..." class="w-full"
-              (input)="applyFilters()" />
+            <input
+              pInputText
+              type="text"
+              [(ngModel)]="searchText"
+              placeholder="Search by name..."
+              class="w-full"
+              (input)="applyFilters()"
+            />
           </div>
           <div>
-            <p-multiselect [options]="typeOptions" [(ngModel)]="filterTypes"
-              placeholder="Filter by type" (onChange)="applyFilters()"
-              [showClear]="true" styleClass="w-full sm:w-56">
+            <p-multiselect
+              [options]="typeOptions"
+              [(ngModel)]="filterTypes"
+              placeholder="Filter by type"
+              (onChange)="applyFilters()"
+              [showClear]="true"
+              styleClass="w-full sm:w-56"
+            >
             </p-multiselect>
           </div>
           <div>
-            <p-select [options]="statusOptions" [(ngModel)]="filterStatus"
-              placeholder="Filter by status" (onChange)="applyFilters()"
-              [showClear]="true" styleClass="w-full sm:w-44">
+            <p-select
+              [options]="statusOptions"
+              [(ngModel)]="filterStatus"
+              placeholder="Filter by status"
+              (onChange)="applyFilters()"
+              [showClear]="true"
+              styleClass="w-full sm:w-44"
+            >
             </p-select>
           </div>
         </div>
@@ -96,7 +136,10 @@ import { AssetRowComponent } from '../components/asset-row/asset-row.component';
 
       <!-- Save error banner -->
       @if (state.saveError) {
-        <div role="alert" class="bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4 flex items-center gap-2 text-sm text-red-700">
+        <div
+          role="alert"
+          class="bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4 flex items-center gap-2 text-sm text-red-700"
+        >
           <i class="pi pi-exclamation-circle"></i>
           {{ state.saveError }}
         </div>
@@ -146,10 +189,16 @@ import { AssetRowComponent } from '../components/asset-row/asset-row.component';
             @if (expandedIds.has(rowId)) {
               <tr class="bg-gray-50 border-t border-gray-100">
                 <td colspan="7" class="px-6 py-4">
-                  <div [formGroup]="asFormGroup(ctrl)"
-                    class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div
+                    [formGroup]="asFormGroup(ctrl)"
+                    class="grid grid-cols-1 sm:grid-cols-3 gap-4"
+                  >
                     <div>
-                      <label [for]="'desc-' + rowId" class="block text-xs font-medium text-gray-600 mb-1">Description</label>
+                      <label
+                        [for]="'desc-' + rowId"
+                        class="block text-xs font-medium text-gray-600 mb-1"
+                        >Description</label
+                      >
                       <textarea
                         [id]="'desc-' + rowId"
                         formControlName="description"
@@ -159,14 +208,33 @@ import { AssetRowComponent } from '../components/asset-row/asset-row.component';
                       ></textarea>
                     </div>
                     <div>
-                      <label [for]="'sn-' + rowId" class="block text-xs font-medium text-gray-600 mb-1">Serial Number</label>
-                      <input pInputText type="text" [id]="'sn-' + rowId" formControlName="serialNumber"
-                        class="w-full text-sm" placeholder="e.g. SN-12345" />
+                      <label
+                        [for]="'sn-' + rowId"
+                        class="block text-xs font-medium text-gray-600 mb-1"
+                        >Serial Number</label
+                      >
+                      <input
+                        pInputText
+                        type="text"
+                        [id]="'sn-' + rowId"
+                        formControlName="serialNumber"
+                        class="w-full text-sm"
+                        placeholder="e.g. SN-12345"
+                      />
                     </div>
                     <div>
-                      <label [for]="'pd-' + rowId" class="block text-xs font-medium text-gray-600 mb-1">Purchase Date</label>
-                      <input pInputText type="date" [id]="'pd-' + rowId" formControlName="purchaseDate"
-                        class="w-full text-sm" />
+                      <label
+                        [for]="'pd-' + rowId"
+                        class="block text-xs font-medium text-gray-600 mb-1"
+                        >Purchase Date</label
+                      >
+                      <input
+                        pInputText
+                        type="date"
+                        [id]="'pd-' + rowId"
+                        formControlName="purchaseDate"
+                        class="w-full text-sm"
+                      />
                     </div>
                   </div>
                 </td>
@@ -190,7 +258,6 @@ import { AssetRowComponent } from '../components/asset-row/asset-row.component';
           (clear)="onClearLog()"
         ></app-audit-log>
       }
-
     </div>
   `,
 })
@@ -204,7 +271,7 @@ export class AssetsListComponent implements OnInit {
 
   typeOptions: { label: string; value: string }[] = [];
   readonly statusOptions = [
-    { label: 'Active',   value: 'Active'   },
+    { label: 'Active', value: 'Active' },
     { label: 'Inactive', value: 'Inactive' },
   ];
 
@@ -223,21 +290,19 @@ export class AssetsListComponent implements OnInit {
       this.applyFilters();
       this.cdr.detectChanges();
     });
-    this.state.form.valueChanges.pipe(
-      takeUntilDestroyed(this.destroyRef),
-    ).subscribe(() => {
+    this.state.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this._rebuildTypeOptions();
       this.applyFilters();
     });
   }
 
   applyFilters(): void {
-    this.filteredControls = this.state.rows.controls.filter(ctrl => {
-      const name   = ((ctrl.get('name')?.value   as string) ?? '').toLowerCase();
-      const type   =  (ctrl.get('type')?.value   as string) ?? '';
-      const status =  (ctrl.get('status')?.value as string) ?? '';
+    this.filteredControls = this.state.rows.controls.filter((ctrl) => {
+      const name = ((ctrl.get('name')?.value as string) ?? '').toLowerCase();
+      const type = (ctrl.get('type')?.value as string) ?? '';
+      const status = (ctrl.get('status')?.value as string) ?? '';
       const matchSearch = !this.searchText || name.includes(this.searchText.toLowerCase());
-      const matchType   = this.filterTypes.length === 0 || this.filterTypes.includes(type);
+      const matchType = this.filterTypes.length === 0 || this.filterTypes.includes(type);
       const matchStatus = !this.filterStatus || status === this.filterStatus;
       return matchSearch && matchType && matchStatus;
     });
@@ -334,6 +399,6 @@ export class AssetsListComponent implements OnInit {
   }
 
   private _rebuildTypeOptions(): void {
-    this.typeOptions = this.state.knownTypes.map(t => ({ label: t, value: t }));
+    this.typeOptions = this.state.knownTypes.map((t) => ({ label: t, value: t }));
   }
 }
