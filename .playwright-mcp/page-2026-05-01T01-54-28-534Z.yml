@@ -1,0 +1,48 @@
+- generic [ref=e5]:
+  - generic [ref=e7]:
+    - heading "Sign In" [level=2] [ref=e8]
+    - generic [ref=e9]:
+      - button "G+" [ref=e10] [cursor=pointer]
+      - button "f" [ref=e11] [cursor=pointer]
+      - button "GitHub" [ref=e12] [cursor=pointer]:
+        - img [ref=e13]
+      - button "in" [ref=e15] [cursor=pointer]
+    - paragraph [ref=e16]: or use your email password
+    - generic [ref=e17]:
+      - textbox "Email" [ref=e18]
+      - textbox "Password" [ref=e19]
+      - button "Forget Your Password?" [ref=e20] [cursor=pointer]
+      - button "Sign In" [ref=e21] [cursor=pointer]
+    - generic [ref=e22]:
+      - strong [ref=e23]: Demo —
+      - text: "Admin:"
+      - code [ref=e24]: admin
+      - text: /
+      - code [ref=e25]: admin123
+      - text: "User:"
+      - code [ref=e26]: user
+      - text: /
+      - code [ref=e27]: user123
+  - generic [ref=e29]:
+    - heading "Create Account" [level=2] [ref=e30]
+    - generic [ref=e31]:
+      - button "G+" [ref=e32] [cursor=pointer]
+      - button "f" [ref=e33] [cursor=pointer]
+      - button "GitHub" [ref=e34] [cursor=pointer]:
+        - img [ref=e35]
+      - button "in" [ref=e37] [cursor=pointer]
+    - paragraph [ref=e38]: or use your email for registration
+    - generic [ref=e39]:
+      - textbox "Name" [ref=e40]
+      - textbox "Email" [ref=e41]
+      - textbox "Password" [ref=e42]
+      - button "Sign Up" [ref=e43] [cursor=pointer]
+  - generic [ref=e45]:
+    - generic:
+      - heading "Welcome Back!" [level=2]
+      - paragraph: Enter your personal details to use all of site features
+      - button "Sign In"
+    - generic [ref=e46]:
+      - heading "Hello, Friend!" [level=2] [ref=e47]
+      - paragraph [ref=e48]: Register with your personal details to use all of site features
+      - button "Sign Up" [ref=e49] [cursor=pointer]

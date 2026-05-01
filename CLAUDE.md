@@ -73,6 +73,15 @@ The UI `Asset` interface does **not** match the API `AssetResponse` 1:1. `AssetS
 
 `toRequest` omits `status` — the API derives active/inactive from context, not a writable boolean.
 
+### Login Page (`/login`)
+
+`LoginComponent` uses a **split-panel sliding card** UI driven by `isSignUpActive: boolean` that toggles an `.active` class on the card. CSS transitions handle the panel slide; no JS animation library is used.
+
+- **Sign-up panel is UI-only**: The "Create Account" form has unbound inputs and no submit handler — there is no registration API endpoint yet.
+- **Component-scoped CSS**: Unlike every other page (which uses Tailwind), `LoginComponent` carries a large inline `styles: []` block. Do not replace it with Tailwind classes without testing the slide animation carefully.
+- **`*ngIf` vs `@if`**: The error banner uses `*ngIf` (requires `CommonModule` in `imports`). Other components use Angular 17+ `@if` control flow. Keep each file consistent with itself; do not mix within a component.
+- **Demo credentials** are displayed in the UI (`admin`/`admin123`, `user`/`user123`) — intentional for the demo environment.
+
 ### Styling
 
 Two separate CSS entry points defined in `angular.json`:
